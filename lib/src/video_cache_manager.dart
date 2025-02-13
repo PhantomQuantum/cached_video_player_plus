@@ -1,4 +1,5 @@
 // Third Party Packages
+import 'package:cached_video_player_plus/src/custom_file_service.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 /// The [VideoCacheManager] is a specialized [CacheManager] for videos cached
@@ -16,5 +17,5 @@ class VideoCacheManager extends CacheManager {
   factory VideoCacheManager() => _instance;
 
   /// Creates a new instance of the [VideoCacheManager].
-  VideoCacheManager._() : super(Config(key));
+  VideoCacheManager._() : super(Config(key, stalePeriod: Duration(days: 10), maxNrOfCacheObjects: 5000));
 }
