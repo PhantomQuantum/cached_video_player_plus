@@ -474,106 +474,112 @@ class CachedVideoPlayerPlusController extends ValueNotifier<CachedVideoPlayerPlu
 
   /// Attempts to open the given [dataSource] and load metadata about the video.
   Future<void> initialize() async {
-    await _storage.initStorage;
+    await _storage.initStorage; // 初始化存储，确保缓存系统可用
 
-    late String realDataSource;
-    bool isCacheAvailable = false;
+    late String realDataSource; // 存储实际使用的数据源
+    bool isCacheAvailable = false; // 记录是否有可用缓存
 
     if (dataSourceType == DataSourceType.network && _shouldUseCache) {
-      FileInfo? cachedFile = await _cacheManager.getFileFromCache(dataSource);
+      // 仅当数据源为网络且需要缓存时执行
+      FileInfo? cachedFile = await _cacheManager.getFileFromCache(dataSource); // 尝试获取缓存文件
 
-      debugPrint('Cached video of [$dataSource] is: ${cachedFile?.file.path}');
+      debugPrint('Cached video of [$dataSource] is: ${cachedFile?.file.path}'); // 打印缓存文件路径
 
       if (cachedFile != null) {
-        final cachedElapsedMillis = _storage.read(_getCacheKey(dataSource));
+        // 如果缓存文件存在
+        final cachedElapsedMillis = _storage.read(_getCacheKey(dataSource)); // 读取缓存的时间戳
 
         if (cachedElapsedMillis != null) {
-          final now = DateTime.timestamp();
+          // 如果缓存时间戳存在
+          final now = DateTime.timestamp(); // 获取当前时间
           final cachedDate = DateTime.fromMillisecondsSinceEpoch(
             cachedElapsedMillis,
-          );
-          final difference = now.difference(cachedDate);
+          ); // 解析缓存时间
+          final difference = now.difference(cachedDate); // 计算缓存时间差
 
           debugPrint(
             'Cache for [$dataSource] valid till: '
             '${cachedDate.add(invalidateCacheIfOlderThan)}',
-          );
+          ); // 打印缓存有效期
 
           if (difference > invalidateCacheIfOlderThan) {
+            // 如果缓存已过期
             debugPrint('Cache of [$dataSource] expired. Removing...');
-            await _cacheManager.removeFile(dataSource);
+            await _cacheManager.removeFile(dataSource); // 移除过期缓存
             cachedFile = null;
           }
         } else {
           debugPrint('Cache of [$dataSource] expired. Removing...');
-          await _cacheManager.removeFile(dataSource);
+          await _cacheManager.removeFile(dataSource); // 如果没有时间戳，直接移除缓存
           cachedFile = null;
         }
       }
 
       if (cachedFile == null) {
-        _cacheManager.downloadFile(dataSource, authHeaders: httpHeaders).then((_) {
+        // 如果缓存文件不存在
+        _cacheManager.downloadFile(dataSource, authHeaders: httpHeaders).then((fileInfo) {
           _storage.write(
             _getCacheKey(dataSource),
             DateTime.timestamp().millisecondsSinceEpoch,
-          );
+          ); // 下载文件并更新缓存时间戳
           debugPrint('Cached video [$dataSource] successfully.');
         });
       } else {
-        isCacheAvailable = true;
+        isCacheAvailable = true; // 标记缓存可用
       }
 
-      realDataSource = isCacheAvailable ? Uri.file(cachedFile!.file.path).toString() : dataSource;
+      realDataSource = isCacheAvailable ? Uri.file(cachedFile!.file.path).toString() : dataSource; // 选择数据源
     } else {
-      realDataSource = dataSource;
+      realDataSource = dataSource; // 如果不使用缓存，直接使用原数据源
     }
 
     final bool allowBackgroundPlayback = videoPlayerOptions?.allowBackgroundPlayback ?? false;
     if (!allowBackgroundPlayback) {
-      _lifeCycleObserver = _VideoAppLifeCycleObserver(this);
+      _lifeCycleObserver = _VideoAppLifeCycleObserver(this); // 如果不允许后台播放，则监听应用生命周期
     }
-    _lifeCycleObserver?.initialize();
-    _creatingCompleter = Completer<void>();
+    _lifeCycleObserver?.initialize(); // 初始化生命周期监听器
+    _creatingCompleter = Completer<void>(); // 创建异步任务完成器
 
-    late DataSource dataSourceDescription;
+    late DataSource dataSourceDescription; // 定义数据源描述
     switch (dataSourceType) {
       case DataSourceType.asset:
         dataSourceDescription = DataSource(
           sourceType: DataSourceType.asset,
           asset: realDataSource,
           package: package,
-        );
+        ); // 资源文件类型
       case DataSourceType.network:
         dataSourceDescription = DataSource(
           sourceType: _shouldUseCache && isCacheAvailable ? DataSourceType.file : DataSourceType.network,
           uri: realDataSource,
           formatHint: formatHint,
           httpHeaders: httpHeaders,
-        );
+        ); // 网络或本地文件类型
       case DataSourceType.file:
         dataSourceDescription = DataSource(
           sourceType: DataSourceType.file,
           uri: realDataSource,
           httpHeaders: httpHeaders,
-        );
+        ); // 本地文件类型
       case DataSourceType.contentUri:
         dataSourceDescription = DataSource(
           sourceType: DataSourceType.contentUri,
           uri: realDataSource,
-        );
+        ); // 内容 URI 类型
     }
 
     if (videoPlayerOptions?.mixWithOthers != null) {
       await _videoPlayerPlatform.setMixWithOthers(
         videoPlayerOptions!.mixWithOthers,
-      );
+      ); // 设置是否允许与其他音频混合播放
     }
 
-    _textureId = (await _videoPlayerPlatform.create(dataSourceDescription)) ?? kUninitializedTextureId;
-    _creatingCompleter!.complete(null);
-    final Completer<void> initializingCompleter = Completer<void>();
+    _textureId = (await _videoPlayerPlatform.create(dataSourceDescription)) ?? kUninitializedTextureId; // 创建视频纹理 ID
+    _creatingCompleter!.complete(null); // 标记创建完成
+    final Completer<void> initializingCompleter = Completer<void>(); // 创建初始化任务完成器
 
     void eventListener(VideoEvent event) {
+      // 事件监听器
       if (_isDisposed) {
         return;
       }
@@ -587,30 +593,26 @@ class CachedVideoPlayerPlusController extends ValueNotifier<CachedVideoPlayerPlu
             isInitialized: event.duration != null,
             errorDescription: null,
             isCompleted: false,
-          );
+          ); // 更新视频信息
           initializingCompleter.complete(null);
-          _applyLooping();
-          _applyVolume();
-          _applyPlayPause();
+          _applyLooping(); // 应用循环播放
+          _applyVolume(); // 应用音量设置
+          _applyPlayPause(); // 应用播放/暂停状态
         case VideoEventType.completed:
-          // In this case we need to stop _timer, set isPlaying=false, and
-          // position=value.duration. Instead of setting the values directly,
-          // we use pause() and seekTo() to ensure the platform stops playing
-          // and seeks to the last frame of the video.
-          pause().then((void pauseResult) => seekTo(value.duration));
-          value = value.copyWith(isCompleted: true);
+          pause().then((void pauseResult) => seekTo(value.duration)); // 播放完成后暂停并跳转至最后一帧
+          value = value.copyWith(isCompleted: true); // 标记为已完成
         case VideoEventType.bufferingUpdate:
-          value = value.copyWith(buffered: event.buffered);
+          value = value.copyWith(buffered: event.buffered); // 更新缓冲状态
         case VideoEventType.bufferingStart:
-          value = value.copyWith(isBuffering: true);
+          value = value.copyWith(isBuffering: true); // 标记缓冲开始
         case VideoEventType.bufferingEnd:
-          value = value.copyWith(isBuffering: false);
+          value = value.copyWith(isBuffering: false); // 标记缓冲结束
         case VideoEventType.isPlayingStateUpdate:
           if (event.isPlaying ?? false) {
             value = value.copyWith(
               isPlaying: event.isPlaying,
               isCompleted: false,
-            );
+            ); // 更新播放状态
           } else {
             value = value.copyWith(isPlaying: event.isPlaying);
           }
@@ -620,20 +622,21 @@ class CachedVideoPlayerPlusController extends ValueNotifier<CachedVideoPlayerPlu
     }
 
     if (_closedCaptionFileFuture != null) {
-      await _updateClosedCaptionWithFuture(_closedCaptionFileFuture);
+      await _updateClosedCaptionWithFuture(_closedCaptionFileFuture); // 更新字幕文件
     }
 
     void errorListener(Object obj) {
       final PlatformException e = obj as PlatformException;
-      value = CachedVideoPlayerPlusValue.erroneous(e.message!);
-      _timer?.cancel();
+      value = CachedVideoPlayerPlusValue.erroneous(e.message!); // 处理错误
+      _timer?.cancel(); // 取消定时器
       if (!initializingCompleter.isCompleted) {
-        initializingCompleter.completeError(obj);
+        initializingCompleter.completeError(obj); // 标记初始化失败
       }
     }
 
-    _eventSubscription = _videoPlayerPlatform.videoEventsFor(_textureId).listen(eventListener, onError: errorListener);
-    return initializingCompleter.future;
+    _eventSubscription =
+        _videoPlayerPlatform.videoEventsFor(_textureId).listen(eventListener, onError: errorListener); // 监听视频事件
+    return initializingCompleter.future; // 返回初始化完成的 Future
   }
 
   @override
@@ -1208,7 +1211,7 @@ class _VideoProgressIndicatorState extends State<VideoProgressIndicator> {
           maxBuffering = end;
         }
       }
-
+      debugPrint('Cached video maxBuffering [$maxBuffering].');
       progressIndicator = SizedBox(
         height: 20.0, // 增大高度，保证拖动点不会被裁剪
         child: Stack(
@@ -1224,14 +1227,27 @@ class _VideoProgressIndicatorState extends State<VideoProgressIndicator> {
                 return Stack(
                   alignment: Alignment.centerLeft, // 让进度条居中
                   children: [
-                    // 缓冲进度条
                     Container(
                       width: stackWidth,
                       height: progressHeight,
                       decoration: BoxDecoration(
-                        color: colors.bufferedColor,
+                        color: colors.backgroundColor,
                         borderRadius: BorderRadius.circular(10.0),
                       ),
+                    ),
+                    // 缓冲进度条
+
+                    StreamBuilder<FileResponse>(
+                      stream: _cacheManager.getFileStream(controller.dataSource, withProgress: true),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final data = snapshot.data;
+                          if (data is DownloadProgress) {
+                            return Text("Downloading: ${(data.progress! * 100).toStringAsFixed(2)}%");
+                          }
+                        }
+                        return Container(); // 默认不显示
+                      },
                     ),
                     // 播放进度条
                     Container(
