@@ -3,6 +3,7 @@
 import 'dart:io';
 // ignore: unnecessary_import
 import 'dart:typed_data'; // ✅ 处理字节数据
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 // ignore: depend_on_referenced_packages
@@ -23,7 +24,8 @@ class VideoCacheManager extends CacheManager {
   factory VideoCacheManager() => _instance;
 
   /// Creates a new instance of the [VideoCacheManager].
-  VideoCacheManager._() : super(Config(key, maxNrOfCacheObjects: 200, fileService: CustomHttpFileService()));
+  // VideoCacheManager._() : super(Config(key, maxNrOfCacheObjects: 200, fileService: CustomHttpFileService()));
+  VideoCacheManager._() : super(Config(key));
 }
 
 class CustomHttpFileService extends HttpFileService {

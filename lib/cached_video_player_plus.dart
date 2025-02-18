@@ -1211,7 +1211,7 @@ class _VideoProgressIndicatorState extends State<VideoProgressIndicator> {
           maxBuffering = end;
         }
       }
-      debugPrint('Cached video maxBuffering [$maxBuffering].');
+      debugPrint('Cached video maxBuffering [$position].[$maxBuffering].[$duration]');
       progressIndicator = SizedBox(
         height: 20.0, // 增大高度，保证拖动点不会被裁剪
         child: Stack(
@@ -1236,18 +1236,13 @@ class _VideoProgressIndicatorState extends State<VideoProgressIndicator> {
                       ),
                     ),
                     // 缓冲进度条
-
-                    StreamBuilder<FileResponse>(
-                      stream: _cacheManager.getFileStream(controller.dataSource, withProgress: true),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasData) {
-                          final data = snapshot.data;
-                          if (data is DownloadProgress) {
-                            return Text("Downloading: ${(data.progress! * 100).toStringAsFixed(2)}%");
-                          }
-                        }
-                        return Container(); // 默认不显示
-                      },
+                    Container(
+                      width: stackWidth * (maxBuffering / duration),
+                      height: progressHeight,
+                      decoration: BoxDecoration(
+                        color: colors.bufferedColor,
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
                     ),
                     // 播放进度条
                     Container(
