@@ -527,7 +527,7 @@ class CachedVideoPlayerPlusController extends ValueNotifier<CachedVideoPlayerPlu
       } else {
         isCacheAvailable = true; // 标记缓存可用
       }
-
+      debugPrint('Cache of [$isCacheAvailable] expired. isCacheAvailable');
       realDataSource = isCacheAvailable ? Uri.file(cachedFile!.file.path).toString() : dataSource; // 选择数据源
     } else {
       realDataSource = dataSource; // 如果不使用缓存，直接使用原数据源
